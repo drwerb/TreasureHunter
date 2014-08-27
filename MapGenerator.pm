@@ -161,28 +161,28 @@ sub addFlow {
 
     my $freePositionsSet = $mapClone->getFreePositionsSet();
 
+    my $flowBuilder = Map::FlowBuilder->new({ map => $mapClone });
+
     for my $freePosition ( $freePositionsSet ) {
         my $newVacantFlowCell = Cell::Flow::Vacant->new({ map => $mapClone });
 
-        $mapClone->setCellOnPosition({ cell => $newVacantFlowCell, pos => $freePosition });
+        $flowBuilder->setCellOnPosition({ cell => $newVacantFlowCell, position => $freePosition });
 
-        if ( $newVacantFlowCell->allowedDirectionsCount() > 2 ) {
-            $newVacantFlowCell->setRecurciveRegionIndex();
+        if ( $flowBuilder->allowedDirectionsCount($newVacantFlowCell) > 2 ) {
+            $flowBuilder->setRecurciveRegionIndex($newVacantFlowCell);
         }
-        elsif ( $newVacantFlowCell->allowedDirectionsCount() == 2 ) {
-            if ( $newVacantFlowCell->isNeiborhoodRegionsDefined() ) {
-                $newVacantFlowCell->setRecurciveRegionIndex();
+        elsif ( $flowBuilder->allowedDirectionsCount($newVacantFlowCell) == 2 ) {
+            if ( $flowBuilder->isNeiborhoodRegionsDefined($newVacantFlowCell) ) {
+                $flowBuilder->setRecurciveRegionIndex($newVacantFlowCell);
             }
             else {
-                $newVacantFlowCell->setUnknownRegion();
+                $flowBuilder->setUnknownRegion($newVacantFlowCell);
             }
         }
         else {
-            $newVacantFlowCell->setRecurciveOnedirectedDenied();
+            $flowBuilder->setRecurciveOnedirectedDenied($newVacantFlowCell);
         }
     }
-
-    my $flowBuilder = Map::FlowBuilder->new({ map => $mapClone });
 
     my $flowRegion  = $flowBuilder->selectRandomRegion(); # Map::FlowBuilder::Region
 
@@ -192,17 +192,73 @@ sub addFlow {
 
     $flowFirstCornerCell->setTrueFlowCell();
 
-    my $lastCornerCell = $vacantCellsLine->getNormalLineCrossing({ cell => $flowFirstCornerCell });
+    my $lastCornerCell;
 
-    $vacantCellsLine->setTrueFlowCells({ from => $flowFirstCornerCell, to => $lastCornerCell });
+    $vacantCellsLine = $flowRegion->getNormalLineCrossing({
+            line => $vacantCellsLine,
+            cell => $flowFirstCornerCell,
+        });
 
-    $vacantCellsLine->markDisabledUnreachableArea();
+    while (1) {
+        $lastCornerCell = $vacantCellsLine->getRandomVacantCornerCell();
+    }
+    continue {
+        my $tmpLine = Map::FlowBuilder::Line->new({
+                cell1 => $flowFirstCornerCell,
+                cell2 => $lastCornerCell,
+            });
 
-    my @flowCornersSequence = ($flowFirstCornerCell, $lastCornerCell);
+        last if ( $flowRegion->isCellReachableThroughInactiveCells({
+                        withActive => $tmpLine,
+                        start      => $lastCornerCell,
+                        goal       => $flowFirstCornerCell,
+                    })
+                );
 
-    while ( $vacantCellsLine = $vacantCellsLine->getNormalLineCrossing({ cell => $lastCornerCell }) ) {
-        last if ( $vacantCellsLine->isContains({ cell => $lastCornerCell }) );
-        $lastCornerCell = $vacantCellsLine->getRandomSiblingCornerCell({ cell => $lastCornerCell });
+        $vacantCellsLine->markExcludedCornerCell($lastCornerCell);
+    }
+
+    $flowRegion->setTrueFlowLineCells({ from => $flowFirstCornerCell, to => $lastCornerCell });
+
+    $flowRegion->markDisabledUnreachableArea({
+            start => $lastCornerCell,
+            goal  => $flowFirstCornerCell,
+        });
+
+    while ( $vacantCellsLine = $flowRegion->getNormalLineCrossing({ line => $vacantCellsLine, cell => $lastCornerCell }) ) {
+
+        if ( $vacantCellsLine->isContains({ cell => $flowFirstCornerCell }) ) {
+            $flowRegion->setTrueFlowLineCells({ from => $lastCornerCell, to => $flowFirstCornerCell });
+            last;
+        }
+
+        my $currentCornerCell;
+
+        while (1) {
+            $currentCornerCell = $vacantCellsLine->getRandomVacantCornerCell();
+        }
+        continue {
+            my $tmpLine = Map::FlowBuilder::Line->new({
+                    cell1 => $lastCornerCell,
+                    cell2 => $currentCornerCell,
+                });
+
+            last if ( $flowRegion->isCellReachableThroughInactiveCells({
+                            withActive => $tmpLine,
+                            start      => $currentCornerCell,
+                            goal       => $flowFirstCornerCell,
+                        })
+                    );
+
+            $vacantCellsLine->markExcludedCornerCell($currentCornerCell);
+        }
+    }
+
+    for my $flowActiveCell ( $flowRegion->getActiveFlowCellsSet() ) {
+        $map->setCellOnPosition({
+                cell     => $flowActiveCell,
+                position => $flowActiveCell->getPosition(),
+            });
     }
 }
 
