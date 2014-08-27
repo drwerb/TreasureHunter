@@ -5,9 +5,12 @@ use Mouse;
 has 'x' => ( is => 'rw', isa => 'Int' );
 has 'y' => ( is => 'rw', isa => 'Int' );
 
-has 'value' => ( is => 'rw', isa => 'Str' );
+has 'upperNeighbor'  => ( is => 'rw', isa => 'Cell' );
+has 'bottomNeighbor' => ( is => 'rw', isa => 'Cell' );
+has 'leftNeighbor'   => ( is => 'rw', isa => 'Cell' );
+has 'rightNeighbor'  => ( is => 'rw', isa => 'Cell' );
 
-use constant PATH_CELL => 1;
+has 'isFree' => ( is => 'rw', isa => 'Bool', default => sub {1} );
 
 sub isSameCell {
     my ($self, $cell) = @_;
@@ -15,9 +18,12 @@ sub isSameCell {
     return ( $self->x == $cell->x && $self->y == $cell->y );
 }
 
-sub isPathOpen {
+sub position {
     my ($self) = @_;
-    return defined $self->value && $self->value == PATH_CELL;
+    return {
+        x => $self->x,
+        y => $self->y,
+    };
 }
 
 1;

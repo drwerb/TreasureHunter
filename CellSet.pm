@@ -1,7 +1,7 @@
 package CellSet;
 
 use Mouse;
-use Tree::Binary::Search;
+#use Tree::Binary::Search;
 
 has 'setAsArray' => ( is => 'rw', isa => 'ArrayRef[Cell::Path]', default => sub { [] } );
 has 'setAsHash'  => ( is => 'rw', isa => 'HashRef[Cell::Path]',  default => sub { {} } );
