@@ -1,0 +1,267 @@
+<html>
+
+    <head>
+        <script type="text/javascript" src="/jquery-1.8.3.js"></script>
+        <script type="text/javascript" src="/jquery.tmpl.js"></script>
+    </head>
+
+    <body>
+        <style type="text/css">
+            td.mapCell {
+                width:  40px;
+                height: 40px;
+                text-align: center;
+                padding: 0px;
+            }
+
+            td.pathCell.stayOnPathCell {
+                border: 2px solid Red;
+            }
+
+            td.pathCell {
+                border: 2px solid Blue;
+            }
+
+            td.earth {
+                background-color: green;
+            }
+
+            td.moon {
+                background-color: orange;
+            }
+
+            td.flow {
+                background-color: blue;
+            }
+
+            td.treasure {
+                background-color: yellow;
+            }
+
+            td.alien {
+                background-color: red;
+            }
+
+            td.blackhole {
+                background-color: cyan;
+            }
+
+            td.LeftRightArrow {
+                background: url('/FlowArrows.png') 0px 0px;
+            }
+
+            td.RightLeftArrow {
+                background: url('/FlowArrows.png') 0px 440px;
+            }
+
+            td.UpDownArrow {
+                background: url('/FlowArrows.png') 0px 400px;
+            }
+
+            td.DownUpArrow {
+                background: url('/FlowArrows.png') 0px 360px;
+            }
+
+            td.RightDownArrow {
+                background: url('/FlowArrows.png') 0px 320px;
+            }
+
+            td.DownRightArrow {
+                background: url('/FlowArrows.png') 0px 280px;
+            }
+
+            td.LeftDownArrow {
+                background: url('/FlowArrows.png') 0px 240px;
+            }
+
+            td.DownLeftArrow {
+                background: url('/FlowArrows.png') 0px 200px;
+            }
+
+            td.UpLeftArrow {
+                background: url('/FlowArrows.png') 0px 160px;
+            }
+
+            td.LeftUpArrow {
+                background: url('/FlowArrows.png') 0px 120px;
+            }
+
+            td.UpRightArrow {
+                background: url('/FlowArrows.png') 0px 80px;
+            }
+
+            td.RightUpArrow {
+                background: url('/FlowArrows.png') 0px 40px;
+            }
+        </style>
+
+        <script type="text/x-jquery-tmpl" id="mapRowTemplate">
+            <tr>
+                {%each(i, cell) Cells %}
+                    <td class="mapCell ${cell.class}" id="${cell.key}"><span>${cell.cellType}</span></td>
+                {%/each %}
+            </tr>
+        </script>
+
+        <script type="text/x-jquery-tmpl" id="goalReachInfo">
+            <br/>
+            <span>{%= Target %} is {%if ! isReachable %} not {%/if%} reachable from {%= Source %}{%if isReachable %} - {%= Steps %} steps{%/if%}.</span>
+            {%if isReachable %}
+            <input type="button" value="Show" onclick="showPath('{%= pathAttr %}')"></input>
+            {%/if%}
+        </script>
+
+        <script type="text/javascript">
+            function generateMap() {
+                $.ajax({
+                    url: "generateMap",
+                    data: {
+                        Action: "json",
+                        width:  $('#mapWidth').val(),
+                        height: $('#mapHeight').val()
+                    },
+                    dataType: "json"
+                })
+                .done(function(data){
+                    var Rows = new Array,
+                        row, col;
+
+                    for ( row = 1; row <= data.height; row++ ) {
+                        var newRow = { Cells: [] };
+                        for ( col = 1; col <= data.width; col++ ) {
+                            var cell = { key: col + "_" + row };
+                            var cellData  = data.cellSet[ cell.key ];
+                            cell.cellType = cellData.cellType;
+
+                            if ( cellData.cellType == 'T' ) {
+                                cell.class = 'treasure';
+                            }
+                            if ( cellData.cellType == 'E' ) {
+                                cell.class = 'earth';
+                            }
+                            if ( cellData.cellType == 'M' ) {
+                                cell.class = 'moon';
+                            }
+                            if ( cellData.cellType == 'F' ) {
+                                cell.class = 'flow';
+                                var from, to;
+                                var prevFlowPos = cellData.meta.prevFlowCell;
+                                var nextFlowPos = cellData.meta.nextFlowCell;
+
+                                cellData.x = parseInt(cellData.x);
+                                cellData.y = parseInt(cellData.y);
+
+                                prevFlowPos.x = parseInt(prevFlowPos.x);
+                                prevFlowPos.y = parseInt(prevFlowPos.y);
+
+                                nextFlowPos.x = parseInt(nextFlowPos.x);
+                                nextFlowPos.y = parseInt(nextFlowPos.y);
+
+                                if ( cellData.x != prevFlowPos.x ) {
+                                    from = cellData.x > prevFlowPos.x
+                                           ? "Left"
+                                           : "Right";
+                                }
+                                else {
+                                    from = cellData.y < prevFlowPos.y
+                                           ? "Down"
+                                           : "Up";
+                                }
+
+                                if ( cellData.x != nextFlowPos.x ) {
+                                    to = cellData.x > nextFlowPos.x
+                                         ? "Left"
+                                         : "Right";
+                                }
+                                else {
+                                    to = cellData.y < nextFlowPos.y
+                                         ? "Down"
+                                         : "Up";
+                                }
+
+                                cell.class = cell.class + " " + from + to + "Arrow";
+                                cell.cellType = cellData.meta.force;
+                            }
+                            if ( cellData.cellType == 'H' ) {
+                                cell.class = 'blackhole';
+                                cell.cellType = cell.cellType + data.blackHolesOrder[cell.key];
+                            }
+                            if ( cellData.cellType == 'A' ) {
+                                cell.class = 'alien';
+                            }
+                            newRow.Cells.push(cell);
+                        }
+                        Rows.push(newRow);
+                    }
+
+                    $("#mapFieldCells").html("");
+                    $('#mapRowTemplate').tmpl(Rows).appendTo("#mapFieldCells");
+
+                    var reachingData = new Array();
+
+                    reachingData.push({
+                        Source      : 'Earth',
+                        Target      : 'Treasure',
+                        isReachable : data.pathEarthTreasure.allCells.length > 0,
+                        Steps       : data.pathEarthTreasure.stayOnCells.length - 1,
+                        pathAttr    : 'pathEarthTreasure'
+                    });
+
+                    reachingData.push({
+                        Source      : 'Moon',
+                        Target      : 'Treasure',
+                        isReachable : data.pathMoonTreasure.allCells.length > 0,
+                        Steps       : data.pathMoonTreasure.stayOnCells.length - 1,
+                        pathAttr    : 'pathMoonTreasure'
+                    });
+
+                    reachingData.push({
+                        Source      : 'Treasure',
+                        Target      : 'Earth',
+                        isReachable : data.pathTreasureEarth.allCells.length > 0,
+                        Steps       : data.pathTreasureEarth.stayOnCells.length - 1,
+                        pathAttr    : 'pathTreasureEarth'
+                    });
+
+                    $("#goalReachInfoHolder").html("");
+                    $('#goalReachInfo').tmpl(reachingData).appendTo("#goalReachInfoHolder");
+
+                    $(document).data("mapData", data);
+                })
+                .error(function(){
+                    alert("AJAX error");
+                });
+            }
+
+            function showPath(pathAttr) {
+                $('#mapFieldCells').find('td').removeClass('pathCell');
+                $('#mapFieldCells').find('td').removeClass('stayOnPathCell');
+
+                var stayOnCells = $(document).data('mapData')[pathAttr].stayOnCells;
+
+                $(stayOnCells).each(function(i, cellId) {
+                    $('#' + cellId).addClass('stayOnPathCell');
+                })
+
+                var path = $(document).data('mapData')[pathAttr].allCells;
+
+                $(path).each(function(i, cellId) {
+                    $('#' + cellId).addClass('pathCell');
+                });
+            }
+        </script>
+
+        <h1>Random map</h1>
+        <span>Width:</span><input type="text" id="mapWidth" value="5">
+        <span>Height:</span><input type="text" id="mapHeight" value="5">
+        <input type="button" onclick="generateMap()" value="Generate Map">
+
+        <table class="mapField">
+            <tbody id="mapFieldCells">
+            </tbody>
+        </table>
+
+        <div id="goalReachInfoHolder"></div>
+    </body>
+
+</html>

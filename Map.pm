@@ -4,6 +4,7 @@ use strict;
 use warnings;
 
 use Mouse;
+use Graph::Directed;
 
 use Cell;
 use CellSet;
@@ -19,8 +20,8 @@ sub _fillFreePositionsSet {
 
     my $freePositionsSet = {};
 
-    for my $row ( 1 .. $self->width ) {
-        for my $col ( 1 .. $self->height ) {
+    for my $row ( 1 .. $self->height ) {
+        for my $col ( 1 .. $self->width ) {
             $freePositionsSet->{$col . "_" . $row} = { x => $col, y => $row };
         }
     }
@@ -219,20 +220,16 @@ sub processFileRow {
     }
 }
 
-sub setCell {
-    my ($self, $x, $y, $val) = @_;
-
-    $self->cellSet()->{$x}{$y} = Cell->new({
-                                        x     => $x,
-                                        y     => $y,
-                                        value => $val,
-                                    });
-}
-
 sub getCellByPosition {
     my ($self, $position) = @_;
 
     return $self->cellSet->{ $self->getPositionKey($position) };
+}
+
+sub getCellByKey {
+    my ($self, $key) = @_;
+
+    return $self->cellSet->{ $key };
 }
 
 sub getCellNeighbors {
@@ -262,8 +259,8 @@ sub printMap {
 
     my $cellSet = $self->cellSet();
 
-    for my $row ( 1 .. $self->width ) {
-        for my $col ( 1 .. $self->height ) {
+    for my $row ( 1 .. $self->height ) {
+        for my $col ( 1 .. $self->width ) {
             my $cell = $cellSet->{ $self->getPositionKey({ x => $col, y => $row}) };
             printf "%s", $cell->cellChar if ( $cell );
         }
@@ -271,26 +268,149 @@ sub printMap {
     }
 }
 
-sub printMapWithPath {
-    my ($self, $path) = @_;
+sub shortestPathBetweenCells {
+    my ($self, $cellPositionFrom, $cellPositionTo, $args) = @_;
 
-    my $pathCellSet = CellSet->new();
+    my $stayOnCellOnly = $args->{stayOnCellOnly};
 
-    map {
-        $pathCellSet->addPathCell($_);
-    } @$path;
+    my $directedGraph = $self->generateDirectedGraph({
+            excludedTypes   => $args->{excludedTypes},
+            stayOnCellOnly => $stayOnCellOnly,
+        });
+
+    my $cellFromKey = $self->getPositionKey( $cellPositionFrom );
+    my $cellToKey   = $self->getPositionKey( $cellPositionTo );
+
+    my @path = $directedGraph->SP_Dijkstra($cellFromKey, $cellToKey);
+
+    return () if ( !@path );
+
+    my $cellSet = $self->cellSet;
+    my $blackHolesOrder = $self->getBlackHolesOrder();
+
+    my @reversedBlackHolesKeys = sort {
+                                    $blackHolesOrder->{$b} <=> $blackHolesOrder->{$a}
+                                } keys %$blackHolesOrder;
+
+    use Data::Dumper;
+
+    my %reversedBlackHolesMap;
+
+    for my $i ( 0 .. (@reversedBlackHolesKeys - 1) ) {
+        my $nextIndex = ($i + 1) % scalar(@reversedBlackHolesKeys);
+        $reversedBlackHolesMap{ $reversedBlackHolesKeys[$i] } = $reversedBlackHolesKeys[$nextIndex];
+    }
+
+    my @posPath = map {
+            my $cell = $cellSet->{$_};
+            if ( ref($cell) eq 'Cell::BlackHole' && ! $stayOnCellOnly ) {
+                my $previousBlackHole = $cellSet->{ $reversedBlackHolesMap{$_} };
+                ($previousBlackHole->position, $cell->position)
+            }
+            else {
+                $cell->position
+            }
+        } @path;
+
+    return @posPath;
+}
+
+sub generateDirectedGraph {
+    my ($self, $args) = @_;
+
+    # HashRef is expected or undef
+    my $excludedTypes   = $args->{excludedTypes};
+    my $stayOnCellOnly = $args->{stayOnCellOnly};
+
+    my $directedGraph = Graph::Directed->new();
 
     my $cellSet = $self->cellSet();
 
-    for my $row ( sort { $a <=> $b } keys %$cellSet ) {
-        print join(
-                "",
-                map { $pathCellSet->isCellExistsInSet($cellSet->{$row}{$_})
-                      ? "x"
-                      : $cellSet->{$row}{$_}->value }
-                    sort { $a <=> $b } keys %{ $cellSet->{$row} }
-            ) . "\n";
+    my @directions = qw( upperNeighbor bottomNeighbor leftNeighbor rightNeighbor );
+
+    for my $row ( 1 .. $self->height ) {
+        for my $col ( 1 .. $self->width ) {
+            my $cell = $cellSet->{ $self->getPositionKey({ x => $col, y => $row}) };
+
+            next if ( ref($cell) eq 'Cell::ET' );
+
+            for my $directionMethod ( @directions ) {
+                my $fromCell = $cell;
+                my $stepCell = $fromCell->$directionMethod;
+
+                next if ( ! $stepCell || $excludedTypes->{ ref($stepCell) } );
+
+                my $reachedCellPosition = $stepCell->onCellStep({ stepFromCell => $fromCell });
+
+                if ( ref($stepCell) eq 'Cell::ET' && ! $stayOnCellOnly ) {
+                    $self->_addGraphEdge($directedGraph, $fromCell->position, $stepCell->position);
+                    $fromCell = $stepCell;
+                }
+
+                $self->_addGraphEdge($directedGraph, $fromCell->position, $reachedCellPosition);
+            }
+        }
     }
+
+    return $directedGraph;
+}
+
+sub _addGraphEdge {
+    my ($self, $graph, $posFrom, $posTo) = @_;
+
+    my $cellFromKey = $self->getPositionKey( $posFrom );
+    my $cellToKey   = $self->getPositionKey( $posTo );
+
+    $graph->add_edge($cellFromKey, $cellToKey);
+}
+
+sub getBlackHolesOrder {
+    my ($self) = @_;
+
+    my $cellSet = $self->cellSet;
+    my $firstBlackHole;
+
+    for ( keys %$cellSet ) {
+        if ( ref($cellSet->{$_}) eq "Cell::BlackHole" ) {
+            $firstBlackHole = $cellSet->{$_};
+            last;
+        }
+    }
+
+    my $blackHoleCellKey = $self->getPositionKey( $firstBlackHole->position );
+    my %blackHolesOrder;
+    my $blackHoleCount = 0;
+
+    while (1) {
+        $blackHolesOrder{ $blackHoleCellKey } = ++$blackHoleCount;
+    }
+    continue {
+        my $blackHoleCell = $cellSet->{$blackHoleCellKey};
+        $blackHoleCellKey = $self->getPositionKey($blackHoleCell->nextHolePosition);
+        last if ( $firstBlackHole->isSameCell( $cellSet->{$blackHoleCellKey} ) );
+    }
+
+    return \%blackHolesOrder;
+}
+
+sub serialize {
+    my ($self) = @_;
+
+    my $mapSerialized = {
+        width  => $self->width,
+        height => $self->height,
+    };
+
+    my $cellSet = $self->cellSet;
+    my $firstBlackHole;
+
+    for my $key ( keys %$cellSet ) {
+        $mapSerialized->{cellSet}->{$key} = $cellSet->{$key}->serialize();
+    }
+
+    $mapSerialized->{blackHolesOrder} = $self->getBlackHolesOrder();
+
+    return $mapSerialized;
 }
 
 1;

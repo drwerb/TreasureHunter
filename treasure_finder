@@ -1,0 +1,20 @@
+<VirtualHost *:8004>
+	ServerAdmin webmaster@localhost 
+	DocumentRoot /home/vvi/work/git_projects/TreasureHunterServer/
+	DirectoryIndex index.html
+
+	PerlModule MapGeneratorHandler
+	<Location /generateMap>
+		SetHandler perl-script
+		PerlHandler MapGeneratorHandler
+		Options Indexes FollowSymLinks MultiViews
+		AllowOverride None
+		Order allow,deny
+		allow from all
+	</Location>
+
+	CustomLog ${APACHE_LOG_DIR}/access.log combined
+	ErrorLog ${APACHE_LOG_DIR}/error.log
+
+	LogLevel warn
+</VirtualHost>

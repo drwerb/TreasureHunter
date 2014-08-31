@@ -10,6 +10,8 @@ has 'bottomNeighbor' => ( is => 'rw', isa => 'Cell' );
 has 'leftNeighbor'   => ( is => 'rw', isa => 'Cell' );
 has 'rightNeighbor'  => ( is => 'rw', isa => 'Cell' );
 
+has 'cellChar' => ( is => 'ro', isa => 'Str', default => '');
+
 has 'isFree' => ( is => 'rw', isa => 'Bool', default => sub {1} );
 
 sub isSameCell {
@@ -24,6 +26,23 @@ sub position {
         x => $self->x,
         y => $self->y,
     };
+}
+
+sub onCellStep {
+    my ($self) = @_;
+    return $self->position;
+}
+
+sub serialize {
+    my ($self) = @_;
+
+    my $cellSerialized = {
+        x        => $self->x,
+        y        => $self->y,
+        cellType => $self->cellChar,
+    };
+
+    return $cellSerialized;
 }
 
 1;

@@ -7,6 +7,8 @@ use Data::Dumper;
 
 use base qw(Map);
 
+use constant MAX_FLOW_FORCE => 3;
+
 has 'firstFlowCell' => ( is => 'rw', isa => 'Cell::Flow' );
 has 'iteration' => ( is => 'rw', isa => 'Int' );
 
@@ -42,13 +44,18 @@ sub generateRandomFlow {
     $self->iteration(0);
 
     if ( $self->findNextRandomFlowCell( $self->firstFlowCell ) ) {
-        my $tmpCell = $self->firstFlowCell;
+        my $prevCell  = $self->firstFlowCell;
+        my $tmpCell;
+        my $flowForce = int(rand(MAX_FLOW_FORCE)) + 1;
         while (1) {
-            $tmpCell = $tmpCell->nextFlowCell;
+            $tmpCell = $prevCell->nextFlowCell;
+            $tmpCell->Force($flowForce);
+            $tmpCell->prevFlowCell($prevCell);
             push @flowCellsSequence, $tmpCell;
         }
         continue {
             last if ( $tmpCell->isSameCell( $self->firstFlowCell ) );
+            $prevCell = $tmpCell;
         }
     }
 

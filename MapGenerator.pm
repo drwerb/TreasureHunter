@@ -80,9 +80,15 @@ sub addTreasure {
 
     my $freePositionsSet = $map->freePositionsSet();
 
+    my $min_distance = 1;
+                       #$map->width > $map->height
+                       #? int($map->width / 2)
+                       #: int($map->height / 2);
+
     while ( my ($posKey, $freePosition) = each %$freePositionsSet ) {
-        next if ( $map->distanceBetween($freePosition, $self->earthCell->position) <= 1 );
+        next if ( $map->distanceBetween($freePosition, $self->earthCell->position) <= $min_distance );
         $map->setCellOnPosition({ cell => $treasureCell, position => $freePosition });
+        $self->treasureCell( $treasureCell );
         return 1;
     }
 
@@ -142,11 +148,12 @@ sub addBlackHole {
     if ( $self->firstBlackHole ) {
 
         my $newBlackHole = Cell::BlackHole->new({ nextHolePosition => $self->firstBlackHole->position });
+
+        $map->setCellOnRandomFreePosition($newBlackHole);
+
         $self->lastBlackHole->nextHolePosition( $newBlackHole->position );
+        $newBlackHole->prevHolePosition( $self->lastBlackHole->position );
         $self->lastBlackHole( $newBlackHole );
-
-       $map->setCellOnRandomFreePosition($newBlackHole);
-
     }
     elsif ( $map->countFreePositions() >= 2 ) {
         $self->firstBlackHole( Cell::BlackHole->new() );
@@ -156,7 +163,9 @@ sub addBlackHole {
         $map->setCellOnRandomFreePosition($self->lastBlackHole);
 
         $self->firstBlackHole->nextHolePosition( $self->lastBlackHole->position );
+        $self->firstBlackHole->prevHolePosition( $self->lastBlackHole->position );
         $self->lastBlackHole->nextHolePosition( $self->firstBlackHole->position );
+        $self->lastBlackHole->prevHolePosition( $self->firstBlackHole->position );
     }
 
     return 1;
