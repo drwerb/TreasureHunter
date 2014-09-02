@@ -10,106 +10,103 @@
             td.mapCell {
                 width:  40px;
                 height: 40px;
+                padding: 0px;
+                border-style: inset;
+                border-color: transparent;
+                border-width: 2px;
+            }
+
+            td.mapCell div {
+                width:  40px;
+                height: 40px;
                 text-align: center;
                 padding: 0px;
             }
 
+            td.mapCell div span {
+                line-height: 40px;
+            }
+
             td.pathCell.stayOnPathCell {
-                border: 2px solid Red;
+                border: 2px inset Red;
             }
 
             td.pathCell {
-                border: 2px solid Blue;
+                border: 2px inset Blue;
             }
 
-            td.earth {
+            div.earth {
                 background-color: green;
             }
 
-            td.moon {
+            div.moon {
                 background-color: orange;
             }
 
-            td.flow {
+            div.flow {
                 background-color: blue;
             }
 
-            td.treasure {
+            div.treasure {
                 background-color: yellow;
             }
 
-            td.alien {
+            div.alien {
                 background-color: red;
             }
 
-            td.blackhole {
+            div.blackhole {
                 background-color: cyan;
             }
 
-            td.LeftRightArrow {
+            div.LeftRightArrow {
                 background: url('/FlowArrows.png') 0px 0px;
             }
 
-            td.RightLeftArrow {
+            div.RightLeftArrow {
                 background: url('/FlowArrows.png') 0px 440px;
             }
 
-            td.UpDownArrow {
+            div.UpDownArrow {
                 background: url('/FlowArrows.png') 0px 400px;
             }
 
-            td.DownUpArrow {
+            div.DownUpArrow {
                 background: url('/FlowArrows.png') 0px 360px;
             }
 
-            td.RightDownArrow {
+            div.RightDownArrow {
                 background: url('/FlowArrows.png') 0px 320px;
             }
 
-            td.DownRightArrow {
+            div.DownRightArrow {
                 background: url('/FlowArrows.png') 0px 280px;
             }
 
-            td.LeftDownArrow {
+            div.LeftDownArrow {
                 background: url('/FlowArrows.png') 0px 240px;
             }
 
-            td.DownLeftArrow {
+            div.DownLeftArrow {
                 background: url('/FlowArrows.png') 0px 200px;
             }
 
-            td.UpLeftArrow {
+            div.UpLeftArrow {
                 background: url('/FlowArrows.png') 0px 160px;
             }
 
-            td.LeftUpArrow {
+            div.LeftUpArrow {
                 background: url('/FlowArrows.png') 0px 120px;
             }
 
-            td.UpRightArrow {
+            div.UpRightArrow {
                 background: url('/FlowArrows.png') 0px 80px;
             }
 
-            td.RightUpArrow {
+            div.RightUpArrow {
                 background: url('/FlowArrows.png') 0px 40px;
             }
         </style>
-
-        <script type="text/x-jquery-tmpl" id="mapRowTemplate">
-            <tr>
-                {%each(i, cell) Cells %}
-                    <td class="mapCell ${cell.class}" id="${cell.key}"><span>${cell.cellType}</span></td>
-                {%/each %}
-            </tr>
-        </script>
-
-        <script type="text/x-jquery-tmpl" id="goalReachInfo">
-            <br/>
-            <span>{%= Target %} is {%if ! isReachable %} not {%/if%} reachable from {%= Source %}{%if isReachable %} - {%= Steps %} steps{%/if%}.</span>
-            {%if isReachable %}
-            <input type="button" value="Show" onclick="showPath('{%= pathAttr %}')"></input>
-            {%/if%}
-        </script>
 
         <script type="text/javascript">
             function generateMap() {
@@ -249,6 +246,22 @@
                     $('#' + cellId).addClass('pathCell');
                 });
             }
+        </script>
+
+        <script type="text/x-jquery-tmpl" id="mapRowTemplate">
+            <tr>
+                {%each(i, cell) Cells %}
+                    <td class="mapCell" id="${cell.key}"><div class="${cell.class}"><span>${cell.cellType}</span></div></td>
+                {%/each %}
+            </tr>
+        </script>
+
+        <script type="text/x-jquery-tmpl" id="goalReachInfo">
+            <br/>
+            <span>{%= Target %} is {%if ! isReachable %} not {%/if%} reachable from {%= Source %}{%if isReachable %} - {%= Steps %} steps{%/if%}.</span>
+            {%if isReachable %}
+            <input type="button" value="Show" onclick="showPath('{%= pathAttr %}')"></input>
+            {%/if%}
         </script>
 
         <h1>Random map</h1>

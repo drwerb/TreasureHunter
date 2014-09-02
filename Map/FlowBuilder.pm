@@ -71,7 +71,7 @@ sub findNextRandomFlowCell {
 
     my $cellFlowNeighbor;
 
-    while ( my $directionMethod = splice(@directions, rand(@directions), 1) ) {
+    while ( my ($directionMethod) = splice(@directions, rand(@directions), 1) ) {
 
         $cellFlowNeighbor = $cell->$directionMethod;
 
