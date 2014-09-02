@@ -24,4 +24,13 @@ around 'serialize' => sub {
     return $cellSerialized;
 };
 
+around 'restore' => sub {
+    my ($orig, $self, $data) = @_;
+
+    $self->$orig($data);
+
+    $self->nextHolePosition( $data->{meta}->{nextHole} );
+    $self->prevHolePosition( $data->{meta}->{prevHole} );
+};
+
 1;

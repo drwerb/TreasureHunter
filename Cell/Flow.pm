@@ -54,4 +54,14 @@ around 'serialize' => sub {
     return $cellSerialized;
 };
 
+around 'restore' => sub {
+    my ($orig, $self, $data) = @_;
+
+    $self->$orig($data);
+
+    $self->Force( $data->{meta}->{force} );
+    $self->nextFlowCell( $data->{meta}->{nextFlowCell} );
+    $self->prevFlowCell( $data->{meta}->{prevFlowCell} );
+};
+
 1;

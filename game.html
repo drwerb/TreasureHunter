@@ -109,127 +109,6 @@
         </style>
 
         <script type="text/javascript">
-            function startGame() {
-                $.ajax({
-                    url: "startGame",
-                    data: {
-                        Action: "json",
-                        width:  $('#mapWidth').val(),
-                        height: $('#mapHeight').val()
-                    },
-                    dataType: "json"
-                })
-                .done(function(data){
-                    var Rows = new Array,
-                        row, col;
-
-                    for ( row = 1; row <= data.height; row++ ) {
-                        var newRow = { Cells: [] };
-                        for ( col = 1; col <= data.width; col++ ) {
-                            var cell = { key: col + "_" + row };
-                            var cellData  = data.cellSet[ cell.key ];
-                            cell.cellType = cellData.cellType;
-
-                            if ( cellData.cellType == 'T' ) {
-                                cell.class = 'treasure';
-                            }
-                            if ( cellData.cellType == 'E' ) {
-                                cell.class = 'earth';
-                            }
-                            if ( cellData.cellType == 'M' ) {
-                                cell.class = 'moon';
-                            }
-                            if ( cellData.cellType == 'F' ) {
-                                cell.class = 'flow';
-                                var from, to;
-                                var prevFlowPos = cellData.meta.prevFlowCell;
-                                var nextFlowPos = cellData.meta.nextFlowCell;
-
-                                cellData.x = parseInt(cellData.x);
-                                cellData.y = parseInt(cellData.y);
-
-                                prevFlowPos.x = parseInt(prevFlowPos.x);
-                                prevFlowPos.y = parseInt(prevFlowPos.y);
-
-                                nextFlowPos.x = parseInt(nextFlowPos.x);
-                                nextFlowPos.y = parseInt(nextFlowPos.y);
-
-                                if ( cellData.x != prevFlowPos.x ) {
-                                    from = cellData.x > prevFlowPos.x
-                                           ? "Left"
-                                           : "Right";
-                                }
-                                else {
-                                    from = cellData.y < prevFlowPos.y
-                                           ? "Down"
-                                           : "Up";
-                                }
-
-                                if ( cellData.x != nextFlowPos.x ) {
-                                    to = cellData.x > nextFlowPos.x
-                                         ? "Left"
-                                         : "Right";
-                                }
-                                else {
-                                    to = cellData.y < nextFlowPos.y
-                                         ? "Down"
-                                         : "Up";
-                                }
-
-                                cell.class = cell.class + " " + from + to + "Arrow";
-                                cell.cellType = cellData.meta.force;
-                            }
-                            if ( cellData.cellType == 'H' ) {
-                                cell.class = 'blackhole';
-                                cell.cellType = cell.cellType + data.blackHolesOrder[cell.key];
-                            }
-                            if ( cellData.cellType == 'A' ) {
-                                cell.class = 'alien';
-                            }
-                            newRow.Cells.push(cell);
-                        }
-                        Rows.push(newRow);
-                    }
-
-                    $("#mapFieldCells").html("");
-                    $('#mapRowTemplate').tmpl(Rows).appendTo("#mapFieldCells");
-
-                    var reachingData = new Array();
-
-                    reachingData.push({
-                        Source      : 'Earth',
-                        Target      : 'Treasure',
-                        isReachable : data.pathEarthTreasure.allCells.length > 0,
-                        Steps       : data.pathEarthTreasure.stayOnCells.length - 1,
-                        pathAttr    : 'pathEarthTreasure'
-                    });
-
-                    reachingData.push({
-                        Source      : 'Moon',
-                        Target      : 'Treasure',
-                        isReachable : data.pathMoonTreasure.allCells.length > 0,
-                        Steps       : data.pathMoonTreasure.stayOnCells.length - 1,
-                        pathAttr    : 'pathMoonTreasure'
-                    });
-
-                    reachingData.push({
-                        Source      : 'Treasure',
-                        Target      : 'Earth',
-                        isReachable : data.pathTreasureEarth.allCells.length > 0,
-                        Steps       : data.pathTreasureEarth.stayOnCells.length - 1,
-                        pathAttr    : 'pathTreasureEarth'
-                    });
-
-                    $("#goalReachInfoHolder").html("");
-                    $('#goalReachInfo').tmpl(reachingData).appendTo("#goalReachInfoHolder");
-
-                    $(document).data("mapData", data);
-                })
-                .error(function(){
-                    alert("AJAX error");
-                });
-            }
-
             function generateMap() {
                 $.ajax({
                     url: "generateMap",
@@ -388,7 +267,7 @@
         <h1>Random map</h1>
         <span>Width:</span><input type="text" id="mapWidth" value="5">
         <span>Height:</span><input type="text" id="mapHeight" value="5">
-        <input type="button" onclick="startGame()" value="Start New Game">
+        <input type="button" onclick="generateMap()" value="Generate Map">
 
         <table class="mapField">
             <tbody id="mapFieldCells">

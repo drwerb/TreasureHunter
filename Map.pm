@@ -8,6 +8,7 @@ use Graph::Directed;
 
 use Cell;
 use CellSet;
+use CellFabric;
 
 has 'width'  => (is => 'rw', isa => 'Int', required => 1);
 has 'height' => (is => 'rw', isa => 'Int', required => 1);
@@ -411,6 +412,19 @@ sub serialize {
     $mapSerialized->{blackHolesOrder} = $self->getBlackHolesOrder();
 
     return $mapSerialized;
+}
+
+sub restore {
+    my ($self, $mapData) = @_;
+
+    my $cellSet = $mapData->{cellSet};
+    my $cellFabric = CellFabric->new();
+
+    for $cellKey ( %$cellSet ) {
+        my $cell = $cellFabric->getCellObjectByChar( $cellSet->{ $cellKey }->{cellType} );
+        $cell->restore( $cellSet->{ $cellKey } );
+        $self->setCellOnPosition({ cell => $cell, position => $cell->position });
+    }
 }
 
 1;

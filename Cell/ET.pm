@@ -24,4 +24,12 @@ around 'serialize' => sub {
     return $cellSerialized;
 };
 
+around 'restore' => sub {
+    my ($orig, $self, $data) = @_;
+
+    $self->$orig($data);
+
+    $self->moonPosition( $data->{meta}->{moonPosition} );
+};
+
 1;

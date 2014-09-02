@@ -45,4 +45,11 @@ sub serialize {
     return $cellSerialized;
 }
 
+sub restore {
+    my ($self, $data) = @_;
+
+    $self->x( $data->{x} );
+    $self->y( $data->{y} );
+}
+
 1;
