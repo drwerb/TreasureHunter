@@ -394,6 +394,11 @@ sub getBlackHolesOrder {
     return \%blackHolesOrder;
 }
 
+sub dataHash {
+    my ($self) = @_;
+
+}
+
 sub serialize {
     my ($self) = @_;
 
@@ -411,6 +416,63 @@ sub serialize {
 
     $mapSerialized->{blackHolesOrder} = $self->getBlackHolesOrder();
 
+    $mapSerialized->{ pathEarthTreasure }->{allCells} = [
+            map {
+                $self->getPositionKey($_)
+            } $self->shortestPathBetweenCells( $mg->earthCell->position, $mg->treasureCell->position)
+        ];
+
+    $mapSerialized->{ pathEarthTreasure }->{stayOnCells} = [
+            map {
+                $self->getPositionKey($_)
+            } $self->shortestPathBetweenCells(
+                        $self->earthCell->position,
+                        $self->treasureCell->position,
+                        { stayOnCellOnly => 1 },
+                    )
+    ];
+
+    $mapSerialized->{ pathMoonTreasure }->{allCells} = [
+            map {
+                $self->getPositionKey($_)
+            } $self->shortestPathBetweenCells( $self->moonCell->position, $self->treasureCell->position)
+        ];
+
+    $mapSerialized->{ pathMoonTreasure }->{stayOnCells} = [
+            map {
+                $self->getPositionKey($_)
+            } $self->shortestPathBetweenCells(
+                        $self->moonCell->position,
+                        $self->treasureCell->position,
+                        { stayOnCellOnly => 1 },
+                    )
+        ];
+
+    $mapSerialized->{ pathTreasureEarth }->{allCells} = [
+            map {
+                $self->getPositionKey($_)
+            } $self->shortestPathBetweenCells(
+                                                $self->treasureCell->position,
+                                                $self->earthCell->position,
+                                                {
+                                                    excludedTypes => { "Cell::ET" => 1 },
+                                                }
+                                            )
+        ];
+
+    $mapSerialized->{ pathTreasureEarth }->{stayOnCells} = [
+            map {
+                $self->getPositionKey($_)
+            } $self->shortestPathBetweenCells(
+                                                $self->treasureCell->position,
+                                                $self->earthCell->position,
+                                                {
+                                                    excludedTypes  => { "Cell::ET" => 1 },
+                                                    stayOnCellOnly => 1,
+                                                }
+                                            )
+        ];
+
     return $mapSerialized;
 }
 
@@ -425,6 +487,39 @@ sub restore {
         $cell->restore( $cellSet->{ $cellKey } );
         $self->setCellOnPosition({ cell => $cell, position => $cell->position });
     }
+}
+
+sub findCellByType {
+    my ($self, $type) = @_;
+
+    my $cellSet = $self->cellSet();
+
+    for my $row ( 1 .. $self->height ) {
+        for my $col ( 1 .. $self->width ) {
+            my $cell = $cellSet->{ $self->getPositionKey({ x => $col, y => $row}) };
+            return $cell if ( ref($cell) eq $type );
+        }
+    }
+
+    return undef;
+}
+
+sub earthCell {
+    my ($self) = @_;
+
+    return $self->findCellByType('Cell::Earth');
+}
+
+sub moonCell {
+    my ($self) = @_;
+
+    return $self->findCellByType('Cell::Moon');
+}
+
+sub treasureCell {
+    my ($self) = @_;
+
+    return $self->findCellByType('Cell::Treasure');
 }
 
 1;

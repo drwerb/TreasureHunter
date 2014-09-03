@@ -1,9 +1,9 @@
 package MapGeneratorHandler;
 
-use JSON;
 use Data::Dumper;
+use JSON;
 
-use MapGenerator;
+use GameServer;
 
 use Apache2::Const -compile => qw(OK);
 #use Apache2::Request;
@@ -16,11 +16,17 @@ sub handler {
 
     my $Action = $args->{Action};
 
-    if ( $Action eq 'simplePrint' ) {
-        printMapDataText($args);
+    if ( $Action eq 'startNewGame' ) {
+        printAsJSON({
+            sessionID => startNewGame($args),
+            msg       => "New game started. You are on Earth.",
+        });
     }
-    elsif ( $Action eq 'json' ) {
-        printMapDataJSON($args);
+    elsif ( $Action eq 'resetGame' ) {
+    }
+    elsif ( $Action eq 'makeMove' ) {
+    }
+    elsif ( $Action eq 'showMap' ) {
     }
 
     return OK;
@@ -35,33 +41,52 @@ sub parseParams {
     return \%args;
 }
 
-sub initMapGenerator {
+sub getSessionID {
+    my ($args) = @_;
+
+    my $sessionID = $args->{sessionID} || "";
+
+    $sessionID = undef if ( $sessionID !~ /^\d{16}$/ );
+
+    return $sessionID;
+}
+
+sub printAsJSON {
+    my ($data) = @_;
+    print JSON->new->pretty(1)->encode($data);
+}
+
+sub startNewGame {
     my ($args) = @_;
 
     my $width  = $args->{width} || "";
     my $height = $args->{height} || "";
 
+    my $sessionID = getSessionID($args);
+
     $width = 5  if ( $width  !~ /^\d+$/ );
     $height = 5 if ( $height !~ /^\d+$/ );
 
-    $mg = MapGenerator->new({ mapWidth => $width, mapHeight => $height });
+    my $gs = GameServer->new();
 
-    return $mg; 
+    return $gs->startNewGame({
+            mapWidth  => $width,
+            mapHeight => $height,
+            sessionID => $sessionID,
+        });
 }
 
 
 sub printMapDataJSON {
     my ($args) = @_;
 
-    my $mg = initMapGenerator($args);
+    my $sessionID = getSessionID($args);
 
-    $map = $mg->generateMap();
+    my $gs = GameServer->new();
 
-    my $mapData = $map->serialize();
+    my $mapData = $gs->restoreSessionMap($sessionID);
 
-    my $json = JSON->new()->pretty(1);
-
-    print $json->encode( $mapData );
+    printAsJSON( $mapData );
 }
 
 sub printMapDataText {
@@ -92,6 +117,11 @@ sub printMapDataText {
     } else {
         print "\nEarth is not reachable with Treasure\n\n";
     }
+}
+
+sub generateAndStoreNewGame {
+    my ($args) = @_;
+
 }
 
 1;

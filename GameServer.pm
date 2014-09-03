@@ -9,7 +9,6 @@ use Time::HiRes qw(gettimeofday);
 
 use MapGenerator;
 
-has 'mapGenerator' => ( is => 'rw', isa => 'MapGenerator' );
 has 'gameMapStorePath' => ( is => 'ro', isa => 'Str', default => sub { $ENV{GameStore} || 'StoredData/GameMap' });
 has 'sessionStorePath' => ( is => 'ro', isa => 'Str', default => sub { $ENV{GameStore} || 'StoredData/Session' });
 
@@ -18,7 +17,13 @@ sub startNewGame {
 
     my ($mapHash, $mapGenerator) = $self->storeNewMap($args);
 
-    $self->storeNewSession({ mapHash => $mapHash, position => $mapGenerator->earthCell->position, });
+    if ( $args->{sessionID} ) {
+        $self->setSessionNewMap($args->{sessionID}, $args);
+    }
+    else {
+        return $self->storeNewSession({ mapHash => $mapHash, position => $mapGenerator->earthCell->position, });
+    }
+
 }
 
 sub storeNewMap {
@@ -58,16 +63,25 @@ sub storeNewMap {
 sub storeNewSession {
     my ($self, $args) = @_;
 
-    my $jsonSessionData = JSON->new->pretty(1)->encode(
-        {
+    my $sessionData = {
             mapHash     => $args->{mapHash},
             position    => $args->{position},
             hasTreasure => 0,
             movesCount  => 0,
-        }
-    );
+        };
 
     my $sessionID = gettimeofday();
+
+    $self->storeSession($sessionID, $sessionData);
+
+    return ($sessionID);
+}
+
+sub storeSession {
+    my ($self, $sessionID, $sessionData) = @_;
+
+    my $jsonSessionData = JSON->new->pretty(1)->encode( $sessionData );
+
     my $filePath = join("/", $self->sessionStorePath, $sessionID);
 
     my $fh = IO::File->new( $filePath, "w" );
@@ -75,8 +89,35 @@ sub storeNewSession {
     print $fh $jsonSessionData;
 
     $fh->close();
+}
 
-    return ($sessionID);
+sub resetSession {
+    my ($self, $sessionID) = @_;
+
+    my $sessionData = $self->restoreSession($sessionID);
+    my $map         = $self->restoreMap($args->{mapHash});
+
+    $sessionData->{position}    = $map->earthCellPosition;
+    $sessionData->{hasTreasure} = 0;
+    $sessionData->{movesCount}  = 0;
+
+    $self->storeSession($sessionID, $sessionData);
+}
+
+sub setSessionNewMap {
+    my ($self, $sessionID, $args) = @_;
+
+    my $sessionData = $self->restoreSession($sessionID);
+
+    my ($mapHash, $mapGenerator) = $self->storeNewMap($args);
+
+    $sessionData->{position}    = $map$mapGenerator->earthCell->position;
+    $sessionData->{hasTreasure} = 0;
+    $sessionData->{movesCount}  = 0;
+
+    $self->storeSession($sessionID, $sessionData);
+
+    return $sessionID;
 }
 
 sub restoreSession {
@@ -109,6 +150,14 @@ sub restoreMap {
     $map->restore( $mapData );
 
     return ($map);
+}
+
+sub restoreSessionMap {
+    my ($self, $sessionID) = @_;
+
+    my $sessionData = $self->restoreSession($sessionID);
+
+    return $self->restoreMap( $sessionData->{mapHash} );
 }
 
 1;
