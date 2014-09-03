@@ -2,8 +2,8 @@ package CellFabric;
 
 use Mouse;
 
-has 'cellClasses' => ( is => 'ro', isa => 'ArrayRef', builder => _enumCellClasses );
-has 'cellCharMap' => ( is => 'ro', isa => 'HashRef', builder => _mapCellCharsToClasses );
+has 'cellClasses' => ( is => 'ro', isa => 'ArrayRef', builder => '_enumCellClasses' );
+has 'cellCharMap' => ( is => 'rw', isa => 'HashRef', builder => '_mapCellCharsToClasses' );
 
 sub _enumCellClasses {
     return [
@@ -21,9 +21,12 @@ sub _enumCellClasses {
 sub _mapCellCharsToClasses {
     my ($self) = @_;
 
-    my $mapHash = map {
-            { $_->cellChar => $_ }
-        } @{ $self->cellClasses };
+    my $mapHash = {};
+
+    for my $cellClass ( @{ $self->cellClasses } ) {
+        eval "require $cellClass";
+        $mapHash->{ $cellClass->new->cellChar } = $cellClass;
+    }
 
     return $mapHash;
 }

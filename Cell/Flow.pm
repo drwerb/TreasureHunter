@@ -6,6 +6,8 @@ use base qw(Cell);
 
 has 'nextFlowCell' => ( is => 'rw', isa => 'Cell::Flow' );
 has 'prevFlowCell' => ( is => 'rw', isa => 'Cell::Flow' );
+has 'nextFlowCellPos' => ( is => 'rw', isa => 'HashRef' );
+has 'prevFlowCellPos' => ( is => 'rw', isa => 'HashRef' );
 has 'Force'        => ( is => 'rw', isa => 'Int' );
 has 'cellChar'     => ( is => 'ro', isa => 'Str', default => 'F');
 
@@ -60,8 +62,8 @@ around 'restore' => sub {
     $self->$orig($data);
 
     $self->Force( $data->{meta}->{force} );
-    $self->nextFlowCell( $data->{meta}->{nextFlowCell} );
-    $self->prevFlowCell( $data->{meta}->{prevFlowCell} );
+    $self->nextFlowCellPos( $data->{meta}->{nextFlowCell} );
+    $self->prevFlowCellPos( $data->{meta}->{prevFlowCell} );
 };
 
 1;

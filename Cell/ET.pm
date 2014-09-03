@@ -4,7 +4,7 @@ use Mouse;
 
 use base qw(Cell);
 
-has 'moonPosition' => ( is => 'rw', isa => 'HashRef', required => 1 );
+has 'moonPosition' => ( is => 'rw', isa => 'HashRef' );
 has 'cellChar' => ( is => 'ro', isa => 'Str', default => 'A');
 
 sub onCellStep {

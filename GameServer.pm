@@ -9,8 +9,8 @@ use Time::HiRes qw(gettimeofday);
 
 use MapGenerator;
 
-has 'gameMapStorePath' => ( is => 'ro', isa => 'Str', default => sub { $ENV{GameStore} || 'StoredData/GameMap' });
-has 'sessionStorePath' => ( is => 'ro', isa => 'Str', default => sub { $ENV{GameStore} || 'StoredData/Session' });
+has 'gameMapStorePath' => ( is => 'ro', isa => 'Str', default => sub { ( $ENV{GameStore} ? $ENV{GameStore} : '.' ) . 'StoredData/GameMap' });
+has 'sessionStorePath' => ( is => 'ro', isa => 'Str', default => sub { ( $ENV{GameStore} ? $ENV{GameStore} : '.' ) . 'StoredData/Session' });
 
 sub startNewGame {
     my ($self, $args) = @_;
@@ -29,7 +29,7 @@ sub startNewGame {
 sub storeNewMap {
     my ($self, $args) = @_;
 
-    my $mg;
+    my ($mg, $map);
 
     while (1) {
         $mg = MapGenerator->new({ mapWidth => $args->{mapWidth}, mapHeight => $args->{mapHeight} });
@@ -53,6 +53,8 @@ sub storeNewMap {
 
     my $fh = IO::File->new( $filePath, "w" );
 
+    warn "File did't open $filePath" if ! $fh;
+
     print $fh $jsonMapData;
 
     $fh->close();
@@ -70,7 +72,7 @@ sub storeNewSession {
             movesCount  => 0,
         };
 
-    my $sessionID = gettimeofday();
+    my $sessionID = join("", gettimeofday());
 
     $self->storeSession($sessionID, $sessionData);
 
@@ -95,7 +97,7 @@ sub resetSession {
     my ($self, $sessionID) = @_;
 
     my $sessionData = $self->restoreSession($sessionID);
-    my $map         = $self->restoreMap($args->{mapHash});
+    my $map         = $self->restoreMap($sessionData->{mapHash});
 
     $sessionData->{position}    = $map->earthCellPosition;
     $sessionData->{hasTreasure} = 0;
@@ -111,7 +113,7 @@ sub setSessionNewMap {
 
     my ($mapHash, $mapGenerator) = $self->storeNewMap($args);
 
-    $sessionData->{position}    = $map$mapGenerator->earthCell->position;
+    $sessionData->{position}    = $mapGenerator->earthCell->position;
     $sessionData->{hasTreasure} = 0;
     $sessionData->{movesCount}  = 0;
 
@@ -158,6 +160,85 @@ sub restoreSessionMap {
     my $sessionData = $self->restoreSession($sessionID);
 
     return $self->restoreMap( $sessionData->{mapHash} );
+}
+
+sub makeMove {
+    my ($self, $sessionID, $move, $args) = @_;
+
+    my $result = {
+        sessionID => $sessionID,
+    };
+
+    my $sessionData = $self->restoreSession($sessionID);
+    my $mapData     = $self->restoreMap($sessionData->{mapHash});
+
+    my $map = Map->new({ width => $mapData->{width}, height => $mapData->{height} });
+
+    $map->restore($mapData);
+
+    my $currentCell = $map->getCellByPosition( $sessionData->{position} );
+
+    my %moveDestMethodMap = (
+            'up'    => 'upperNeighbor',
+            'down'  => 'bottomNeighbor',
+            'left'  => 'leftNighbor',
+            'right' => 'rightNeghbor',
+        );
+
+    my $method = $moveDestMethodMap{$move};
+
+    my $stepOnCell = $currentCell->$method;
+
+    if ( ! $stepOnCell ) {
+        $result->{msg} = "Wall";
+    }
+    else {
+        my $newPosition = $stepOnCell->onCellStep( { stepFromCell => $currentCell } );
+        my $newCell     = $map->getCellByPosition( $newPosition );
+
+        if ( ref($newCell) eq 'Cell::Earth' ) {
+            $result->{msg}  = "Earth!";
+            $result->{msg} .= " You has reached with treasure!" if ( $sessionData->{hasTreasure} );
+        }
+        elsif ( ref($newCell) eq 'Cell::Moon' ) {
+            if ( ref($stepOnCell) eq 'Cell::ET' ) {
+                $result->{msg}  = "Extraterrastrial!";
+                $result->{msg} .= " You have lost treasure :(";
+                $sessionData->{hasTreasure} = 0;
+            }
+            else {
+                $result->{msg} = "Moon!";
+            }
+        }
+        elsif ( ref($newCell) eq 'Cell::Treasure' ) {
+            $result->{msg} = "Treasure!";
+            $sessionData->{hasTreasure} = 1;
+        }
+        elsif ( ref($newCell) eq 'Cell::Flow' ) {
+            $result->{msg} = "Flow (+/-)" . $newCell->Force;
+        }
+        elsif ( ref($newCell) eq 'Cell::BlackHole' ) {
+            $result->{msg} = "Black Hole!";
+        }
+        else {
+            $result->{msg} = "Unknown";
+        }
+
+        $sessionData->{position} = $newPosition;
+
+    }
+
+    $sessionData->{movesCount}++;
+
+    $self->storeSession($sessionID, $sessionData);
+
+    $result->{hasTreasure} = $sessionData->{hasTreasure};
+
+    if ( $args->{isMapShown} ) {
+        $result->{position} = $sessionData->{position};
+    }
+
+    return $result;
 }
 
 1;

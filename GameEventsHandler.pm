@@ -1,4 +1,4 @@
-package MapGeneratorHandler;
+package GameEventsHandler;
 
 use Data::Dumper;
 use JSON;
@@ -23,10 +23,16 @@ sub handler {
         });
     }
     elsif ( $Action eq 'resetGame' ) {
+        printAsJSON({
+            sessionID => resetGame($args),
+            msg       => "Game has been reseted. You are on Earth.",
+        });
     }
     elsif ( $Action eq 'makeMove' ) {
+        printAsJSON( makeMove($args) );
     }
     elsif ( $Action eq 'showMap' ) {
+        printAsJSON( getSessionMapData($args) );
     }
 
     return OK;
@@ -76,52 +82,45 @@ sub startNewGame {
         });
 }
 
+sub resetGame {
+    my ($args) = @_;
 
-sub printMapDataJSON {
+    my $sessionID = getSessionID($args);
+
+    $width = 5  if ( $width  !~ /^\d+$/ );
+    $height = 5 if ( $height !~ /^\d+$/ );
+
+    my $gs = GameServer->new();
+
+    $gs->resetSession({
+            sessionID => $sessionID,
+        });
+
+    return $sessionID;
+}
+
+sub getSessionMapData {
     my ($args) = @_;
 
     my $sessionID = getSessionID($args);
 
     my $gs = GameServer->new();
 
-    my $mapData = $gs->restoreSessionMap($sessionID);
-
-    printAsJSON( $mapData );
+    return $gs->restoreSessionMap($sessionID);
 }
 
-sub printMapDataText {
+sub makeMove {
     my ($args) = @_;
 
-    my $mg = initMapGenerator($args);
+    my $sessionID = getSessionID($args);
 
-    $map = $mg->generateMap();
+    my $move = $args->{move};
 
-    printf "Width = %d\nHeight = %d\n\n", $map->width, $map->height;
+    return undef if ( $move !~ /^(up|down|left|right)$/ );
 
-    $map->printMap();
+    my $gs = GameServer->new();
 
-    if ( my @path = $map->shortestPathBetweenCells( $mg->earthCell->position, $mg->treasureCell->position) ) {
-        printf "\nTreasure is reachable from Earth - %d steps\n\n", scalar(@path) - 1;
-    } else {
-        print "\nTreasure is not reachable from Earth\n\n";
-    }
-
-    if ( my @path = $map->shortestPathBetweenCells( $mg->moonCell->position, $mg->treasureCell->position) ) {
-        printf "\nTreasure is reachable from Moon - %d steps\n\n", scalar(@path) - 1;
-    } else {
-        print "\nTreasure is not reachable from Moon\n\n";
-    }
-
-    if ( my @path = $map->shortestPathBetweenCells( $mg->treasureCell->position, $mg->earthCell->position, { "Cell::ET" => 1 } ) ) {
-        printf "\nEarth is reachable with Treasure - %d steps\n\n", scalar(@path) - 1;
-    } else {
-        print "\nEarth is not reachable with Treasure\n\n";
-    }
-}
-
-sub generateAndStoreNewGame {
-    my ($args) = @_;
-
+    return $gs->makeMove($sessionID, $move, $args);
 }
 
 1;

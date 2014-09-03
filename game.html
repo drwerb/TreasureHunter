@@ -109,13 +109,16 @@
         </style>
 
         <script type="text/javascript">
-            function generateMap() {
+            $(document).ready(function(){
+                $('#mapFieldCells').data('isMapShown', false);
+            });
+
+            function showMap() {
                 $.ajax({
-                    url: "generateMap",
+                    url: "gameEvent",
                     data: {
-                        Action: "json",
-                        width:  $('#mapWidth').val(),
-                        height: $('#mapHeight').val()
+                        Action: "showMap",
+                        sessionID: $('#sessionID').val()
                     },
                     dataType: "json"
                 })
@@ -193,6 +196,7 @@
 
                     $("#mapFieldCells").html("");
                     $('#mapRowTemplate').tmpl(Rows).appendTo("#mapFieldCells");
+                    $("#mapFieldCells").data('isMapShown', true);
 
                     var reachingData = new Array();
 
@@ -246,6 +250,49 @@
                     $('#' + cellId).addClass('pathCell');
                 });
             }
+
+            function startNewGame() {
+                $.ajax({
+                    url: "gameEvent",
+                    data: {
+                        Action: "startNewGame",
+                        width:  $('#mapWidth').val(),
+                        height: $('#mapHeight').val()
+                    },
+                    dataType: "json"
+                })
+                .done(function(data){
+                    $('#sessionID').val(data.sessionID);
+                    $('#moveCount').val(0);
+                    $('#hasTreasure').val('No');
+                    $('#stayOnCell').val(data.msg);
+                })
+                .error(function(){
+                    alert("AJAX error");
+                });
+            }
+
+            function makeMove(destination) {
+                $.ajax({
+                    url: "gameEvent",
+                    data: {
+                        Action: "makeMove",
+                        sessionID:  $('#sessionID').val(),
+                        move:       destination,
+                        isMapShown: $('#mapFieldCells').data('isMapShown') ? 1 : 0
+                    },
+                    dataType: "json"
+                })
+                .done(function(data){
+                    $('#sessionID').val(data.sessionID);
+                    $('#moveCount').val( $('#moveCount').val()++ );
+                    $('#hasTreasure').val( data.hasTreasure ? 'Yes' : 'No');
+                    $('#stayOnCell').val(data.msg);
+                })
+                .error(function(){
+                    alert("AJAX error");
+                });
+            }
         </script>
 
         <script type="text/x-jquery-tmpl" id="mapRowTemplate">
@@ -267,7 +314,52 @@
         <h1>Random map</h1>
         <span>Width:</span><input type="text" id="mapWidth" value="5">
         <span>Height:</span><input type="text" id="mapHeight" value="5">
-        <input type="button" onclick="generateMap()" value="Generate Map">
+        <input type="button" onclick="startNewGame()" value="New Game">
+
+        <div>
+            <table>
+                <tbody>
+                    <tr>
+                        <td>Session ID</td>
+                        <td><input type="text" disabled id="sessionID"></td>
+                    </tr>
+                    <tr>
+                        <td>Move Number</td>
+                        <td><input type="text" disabled id="moveCount"></td>
+                    </tr>
+                    <tr>
+                        <td>Has Treasure</td>
+                        <td><input type="text" disabled id="hasTreasure"></td>
+                    </tr>
+                    <tr>
+                        <td>Stay On</td>
+                        <td><input type="text" disabled id="stayOnCell"></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div>
+            <table class="gameMoveControls">
+                <tbody>
+                    <tr>
+                        <td></td>
+                        <td><input type="button" onclick="makeMove('up')" value="Up"></td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><input type="button" onclick="makeMove('left')" value="Left"></td>
+                        <td></td>
+                        <td><input type="button" onclick="makeMove('right')" value="Right"></td>
+                    </tr>
+                    <tr>
+                        <td></td>
+                        <td><input type="button" onclick="makeMove('down')" value="Down"></td>
+                        <td></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
 
         <table class="mapField">
             <tbody id="mapFieldCells">

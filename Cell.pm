@@ -15,9 +15,14 @@ has 'cellChar' => ( is => 'ro', isa => 'Str', default => '');
 has 'isFree' => ( is => 'rw', isa => 'Bool', default => sub {1} );
 
 sub isSameCell {
-    my ($self, $cell) = @_;
+    my ($self, $cellData) = @_;
 
-    return ( $self->x == $cell->x && $self->y == $cell->y );
+    if ( ref($cellData) eq 'HASH' ) {
+        return ( $self->x == $cellData->{x} && $self->y == $cellData->{y} );
+    }
+    else {
+        return ( $self->x == $cellData->x && $self->y == $cellData->y );
+    }
 }
 
 sub position {

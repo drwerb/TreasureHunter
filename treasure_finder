@@ -13,6 +13,16 @@
 		allow from all
 	</Location>
 
+	PerlModule GameEventsHandler
+	<Location /gameEvent>
+		SetHandler perl-script
+		PerlHandler GameEventsHandler
+		Options Indexes FollowSymLinks MultiViews
+		AllowOverride None
+		Order allow,deny
+		allow from all
+	</Location>
+
 	CustomLog ${APACHE_LOG_DIR}/access.log combined
 	ErrorLog ${APACHE_LOG_DIR}/error.log
 

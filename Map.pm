@@ -419,7 +419,7 @@ sub serialize {
     $mapSerialized->{ pathEarthTreasure }->{allCells} = [
             map {
                 $self->getPositionKey($_)
-            } $self->shortestPathBetweenCells( $mg->earthCell->position, $mg->treasureCell->position)
+            } $self->shortestPathBetweenCells( $self->earthCell->position, $self->treasureCell->position)
         ];
 
     $mapSerialized->{ pathEarthTreasure }->{stayOnCells} = [
@@ -482,10 +482,25 @@ sub restore {
     my $cellSet = $mapData->{cellSet};
     my $cellFabric = CellFabric->new();
 
-    for $cellKey ( %$cellSet ) {
+    for my $cellKey ( keys %$cellSet ) {
         my $cell = $cellFabric->getCellObjectByChar( $cellSet->{ $cellKey }->{cellType} );
         $cell->restore( $cellSet->{ $cellKey } );
         $self->setCellOnPosition({ cell => $cell, position => $cell->position });
+    }
+
+    $self->restoreFlows();
+}
+
+sub restoreFlows {
+    my ($self) = @_;
+
+    my $cellSet = $self->cellSet;
+
+    for my $cellKey ( keys %$cellSet ) {
+        my $cell = $cellSet->{ $cellKey };
+        next if ( ref($cell) ne 'Cell::Flow' );
+        $cell->nextFlowCell( $self->getCellByPosition( $cell->nextFlowCellPos ) );
+        $cell->prevFlowCell( $self->getCellByPosition( $cell->prevFlowCellPos ) );
     }
 }
 
