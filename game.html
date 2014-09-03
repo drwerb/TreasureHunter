@@ -7,6 +7,12 @@
 
     <body>
         <style type="text/css">
+            div#currentPos {
+                background: url('/person.png');
+                position: relative;
+                top: -40px;
+            }
+
             td.mapCell {
                 width:  40px;
                 height: 40px;
@@ -112,6 +118,33 @@
             $(document).ready(function(){
                 $('#mapFieldCells').data('isMapShown', false);
             });
+
+            $(document).keydown(function(e) {
+                switch(e.which) {
+                    case 37: // left
+                    makeMove('left');
+                    break;
+
+                    case 38: // up
+                    makeMove('up');
+                    break;
+
+                    case 39: // right
+                    makeMove('right');
+                    break;
+
+                    case 40: // down
+                    makeMove('down');
+                    break;
+
+                    default: return; // exit this handler for other keys
+                }
+                e.preventDefault(); // prevent the default action (scroll / move caret)
+            });
+
+            function posKey(position) {
+                return [ position.x, position.y ].join("_");
+            }
 
             function showMap() {
                 $.ajax({
@@ -227,11 +260,18 @@
                     $("#goalReachInfoHolder").html("");
                     $('#goalReachInfo').tmpl(reachingData).appendTo("#goalReachInfoHolder");
 
+                    setPersonPosition(data.currentPosition);
+
                     $(document).data("mapData", data);
                 })
                 .error(function(){
                     alert("AJAX error");
                 });
+            }
+
+            function setPersonPosition(position) {
+                $('#currentPos').remove();
+                $('<div id="currentPos"></div>').appendTo("#" + posKey(position) + " div");
             }
 
             function showPath(pathAttr) {
@@ -273,25 +313,45 @@
             }
 
             function makeMove(destination) {
+                var isMapShown = $('#mapFieldCells').data('isMapShown');
+
                 $.ajax({
                     url: "gameEvent",
                     data: {
                         Action: "makeMove",
                         sessionID:  $('#sessionID').val(),
                         move:       destination,
-                        isMapShown: $('#mapFieldCells').data('isMapShown') ? 1 : 0
+                        'isMapShown': isMapShown ? 1 : 0
                     },
-                    dataType: "json"
+                    dataType: "json",
+                    async: false
                 })
                 .done(function(data){
                     $('#sessionID').val(data.sessionID);
-                    $('#moveCount').val( $('#moveCount').val()++ );
+                    $('#moveCount').val( parseInt($('#moveCount').val()) + 1 );
                     $('#hasTreasure').val( data.hasTreasure ? 'Yes' : 'No');
                     $('#stayOnCell').val(data.msg);
+
+                    if ( isMapShown ) {
+                        setPersonPosition(data.currentPosition);
+                    }
+
+                    if ( data.gameComplete ) {
+                        alert("That is all. You have reached Earth with treasure!");
+                        $('#mapFieldCells').data("goalReached", true);
+                    }
                 })
                 .error(function(){
                     alert("AJAX error");
                 });
+            }
+
+            function runBot() {
+                var destinations = [ 'up', 'down', 'left', 'right' ];
+                while ( ! $('#mapFieldCells').data("goalReached") ) {
+                    var randIndx = Math.floor( Math.random() * destinations.length );
+                    makeMove( destinations[randIndx] );
+                }
             }
         </script>
 
@@ -315,6 +375,8 @@
         <span>Width:</span><input type="text" id="mapWidth" value="5">
         <span>Height:</span><input type="text" id="mapHeight" value="5">
         <input type="button" onclick="startNewGame()" value="New Game">
+        <input type="button" onclick="showMap()" value="Show Map">
+        <input type="button" onclick="runBot()" value="Run Bot">
 
         <div>
             <table>

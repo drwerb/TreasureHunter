@@ -137,7 +137,7 @@ sub restoreSession {
 }
 
 sub restoreMap {
-    my ($self, $mapHash) = @_;
+    my ($self, $mapHash, $args) = @_;
 
     my $filePath = join("/", $self->gameMapStorePath, $mapHash);
 
@@ -146,6 +146,8 @@ sub restoreMap {
     my $mapData = JSON->new->decode( join("", <$fh>) );
 
     $fh->close();
+
+    return $mapData if ( $args->{rawData} );
 
     my $map = Map->new({ width => $mapData->{width}, height => $mapData->{height} });
 
@@ -159,7 +161,11 @@ sub restoreSessionMap {
 
     my $sessionData = $self->restoreSession($sessionID);
 
-    return $self->restoreMap( $sessionData->{mapHash} );
+    my $mapData = $self->restoreMap( $sessionData->{mapHash}, { rawData => 1 } );
+
+    $mapData->{currentPosition} = $sessionData->{position};
+
+    return $mapData;
 }
 
 sub makeMove {
@@ -170,19 +176,15 @@ sub makeMove {
     };
 
     my $sessionData = $self->restoreSession($sessionID);
-    my $mapData     = $self->restoreMap($sessionData->{mapHash});
-
-    my $map = Map->new({ width => $mapData->{width}, height => $mapData->{height} });
-
-    $map->restore($mapData);
+    my $map         = $self->restoreMap($sessionData->{mapHash});
 
     my $currentCell = $map->getCellByPosition( $sessionData->{position} );
 
     my %moveDestMethodMap = (
             'up'    => 'upperNeighbor',
             'down'  => 'bottomNeighbor',
-            'left'  => 'leftNighbor',
-            'right' => 'rightNeghbor',
+            'left'  => 'leftNeighbor',
+            'right' => 'rightNeighbor',
         );
 
     my $method = $moveDestMethodMap{$move};
@@ -198,7 +200,10 @@ sub makeMove {
 
         if ( ref($newCell) eq 'Cell::Earth' ) {
             $result->{msg}  = "Earth!";
-            $result->{msg} .= " You has reached with treasure!" if ( $sessionData->{hasTreasure} );
+            if ( $sessionData->{hasTreasure} ) {
+                $result->{msg} .= " You has reached with treasure!";
+                $result->{gameComplete} = 1;
+            }
         }
         elsif ( ref($newCell) eq 'Cell::Moon' ) {
             if ( ref($stepOnCell) eq 'Cell::ET' ) {
@@ -235,7 +240,7 @@ sub makeMove {
     $result->{hasTreasure} = $sessionData->{hasTreasure};
 
     if ( $args->{isMapShown} ) {
-        $result->{position} = $sessionData->{position};
+        $result->{currentPosition} = $sessionData->{position};
     }
 
     return $result;

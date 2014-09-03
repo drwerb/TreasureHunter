@@ -482,7 +482,10 @@ sub restore {
     my $cellSet = $mapData->{cellSet};
     my $cellFabric = CellFabric->new();
 
+    use Data::Dumper;
+
     for my $cellKey ( keys %$cellSet ) {
+        warn Dumper [$cellKey, ref($cellSet->{ $cellKey })] if ! $cellSet->{ $cellKey }->{cellType};
         my $cell = $cellFabric->getCellObjectByChar( $cellSet->{ $cellKey }->{cellType} );
         $cell->restore( $cellSet->{ $cellKey } );
         $self->setCellOnPosition({ cell => $cell, position => $cell->position });
