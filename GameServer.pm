@@ -6,6 +6,7 @@ use Digest::SHA qw(sha256_hex);
 use JSON;
 use IO::File;
 use Time::HiRes qw(gettimeofday);
+use Chache::FileCache;
 
 use MapGenerator;
 

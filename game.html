@@ -13,6 +13,20 @@
                 top: -40px;
             }
 
+            div#gameInfo {
+                float: left;
+            }
+
+            div#gameMoveControls {
+                border: 1px solid;
+                display: inline-block;
+                overflow: hidden;
+            }
+
+            table.mapField {
+                clear: both;
+            }
+
             td.mapCell {
                 width:  40px;
                 height: 40px;
@@ -292,6 +306,11 @@
             }
 
             function startNewGame() {
+                $('#mapFieldCells').data("goalReached", false);
+                $('#mapFieldCells').data('isMapShown', false);
+                $("#mapFieldCells").html("");
+                $("#goalReachInfoHolder").html("");
+
                 $.ajax({
                     url: "gameEvent",
                     data: {
@@ -324,25 +343,25 @@
                         'isMapShown': isMapShown ? 1 : 0
                     },
                     dataType: "json",
-                    async: false
-                })
-                .done(function(data){
-                    $('#sessionID').val(data.sessionID);
-                    $('#moveCount').val( parseInt($('#moveCount').val()) + 1 );
-                    $('#hasTreasure').val( data.hasTreasure ? 'Yes' : 'No');
-                    $('#stayOnCell').val(data.msg);
+                    async: false,
+                    success: function(data){
+                            $('#sessionID').val(data.sessionID);
+                            $('#moveCount').val( parseInt($('#moveCount').val()) + 1 );
+                            $('#hasTreasure').val( data.hasTreasure ? 'Yes' : 'No');
+                            $('#stayOnCell').val(data.msg);
 
-                    if ( isMapShown ) {
-                        setPersonPosition(data.currentPosition);
-                    }
+                            if ( isMapShown ) {
+                                setPersonPosition(data.currentPosition);
+                            }
 
-                    if ( data.gameComplete ) {
-                        alert("That is all. You have reached Earth with treasure!");
-                        $('#mapFieldCells').data("goalReached", true);
-                    }
-                })
-                .error(function(){
-                    alert("AJAX error");
+                            if ( data.gameComplete ) {
+                                alert("That is all. You have reached Earth with treasure!");
+                                $('#mapFieldCells').data("goalReached", true);
+                            }
+                        },
+                    error: function(){
+                            alert("AJAX error");
+                        }
                 });
             }
 
@@ -378,7 +397,9 @@
         <input type="button" onclick="showMap()" value="Show Map">
         <input type="button" onclick="runBot()" value="Run Bot">
 
-        <div>
+        <br>
+
+        <div id="gameInfo">
             <table>
                 <tbody>
                     <tr>
@@ -401,8 +422,8 @@
             </table>
         </div>
 
-        <div>
-            <table class="gameMoveControls">
+        <div id="gameMoveControls">
+            <table>
                 <tbody>
                     <tr>
                         <td></td>
