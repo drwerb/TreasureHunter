@@ -6,7 +6,7 @@ use Digest::SHA qw(sha256_hex);
 use JSON;
 use IO::File;
 use Time::HiRes qw(gettimeofday);
-use Chache::FileCache;
+#use Chache::FileCache;
 
 use MapGenerator;
 
@@ -190,7 +190,7 @@ sub makeMove {
 
     my $method = $moveDestMethodMap{$move};
 
-    my $stepOnCell = $currentCell->$method;
+    my $stepOnCell = $map->$method($currentCell);
 
     if ( ! $stepOnCell ) {
         $result->{msg} = "Wall";

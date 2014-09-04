@@ -39,69 +39,66 @@ sub generateRandomFlow {
             position => $freeCellPosition,
         });
 
-    my @flowCellsSequence;
+    my @flowCellsSequence = $self->buildRandomFlowCellSequence();
 
-    $self->iteration(0);
+    if ( @flowCellsSequence ) {
+        my $flowCellsCount = @flowCellsSequence;
+        my $flowForce = int(rand($flowCellsCount - 1)) + 1;
 
-    if ( $self->findNextRandomFlowCell( $self->firstFlowCell ) ) {
-        my $prevCell  = $self->firstFlowCell;
-        my $tmpCell;
-        my $flowForce = int(rand(MAX_FLOW_FORCE)) + 1;
-        while (1) {
-            $tmpCell = $prevCell->nextFlowCell;
-            $tmpCell->Force($flowForce);
-            $tmpCell->prevFlowCell($prevCell);
-            push @flowCellsSequence, $tmpCell;
-        }
-        continue {
-            last if ( $tmpCell->isSameCell( $self->firstFlowCell ) );
-            $prevCell = $tmpCell;
+        for my $i ( 0 .. $flowCellsCount-1 ) {
+            my $prevIndex = $i - 1;
+            my $nextIndex = ( $i != ($flowCellsCount-1) ) ? $i + 1 : 0;
+            my $flowCell = $flowCellsSequence[$i];
+
+            $flowCell->Force($flowForce);
+            $flowCell->prevFlowCell( $flowCellsSequence[$prevIndex] );
+            $flowCell->nextFlowCell( $flowCellsSequence[$nextIndex] );
         }
     }
 
     return @flowCellsSequence;
 }
 
-sub findNextRandomFlowCell {
-    my ($self, $cell) = @_;
+sub buildRandomFlowCellSequence {
+    my ($self) = @_;
 
-    $self->iteration( $self->iteration + 1 );
+    my @flow = ( $self->firstFlowCell );
 
-    my @directions = qw( upperNeighbor bottomNeighbor leftNeighbor rightNeighbor );
+    NEXT_FLOW_CELL: while ( @flow ) {
+        my @directions = qw( upperNeighbor bottomNeighbor leftNeighbor rightNeighbor );
 
-    my $cellFlowNeighbor;
+        my $cell = $flow[-1];
+        my $cellFlowNeighbor;
 
-    while ( my ($directionMethod) = splice(@directions, rand(@directions), 1) ) {
+        NEXT_DIRECTION: while ( my ($directionMethod) = splice(@directions, rand(@directions), 1) ) {
 
-        $cellFlowNeighbor = $cell->$directionMethod;
+            $cellFlowNeighbor = $self->$directionMethod($cell);
 
-        if ( $cellFlowNeighbor && $cellFlowNeighbor->isSameCell( $self->firstFlowCell ) && $self->iteration > 2 ) {
-            $cell->nextFlowCell( $self->firstFlowCell );
-            $self->iteration( $self->iteration - 1 );
-            return $cellFlowNeighbor;
-        }
-        elsif ( ! $cellFlowNeighbor ) {
-            my $freePos = $self->isNeighborDirectionFree($cell, $directionMethod);
+            if ( $cellFlowNeighbor && $cellFlowNeighbor->isSameCell( $self->firstFlowCell ) && @flow > 2 ) {
+                return @flow;
+            }
+            elsif ( ! $cellFlowNeighbor ) {
+                my $freePos = $self->isNeighborDirectionFree($cell, $directionMethod);
 
-            next if ( ! $freePos );
+                next NEXT_DIRECTION if ( ! $freePos );
 
-            my $newFlowCell = Cell::Flow->new();
+                my $newFlowCell = Cell::Flow->new();
 
-            $self->setCellOnPosition({
-                    cell     => $newFlowCell,
-                    position => $freePos,
-                });
+                $self->setCellOnPosition({
+                        cell     => $newFlowCell,
+                        position => $freePos,
+                    });
 
-            if ( $self->findNextRandomFlowCell($newFlowCell) ) {
-                $cell->nextFlowCell( $newFlowCell );
-                $self->iteration( $self->iteration - 1 );
-                return $newFlowCell;
+                push @flow, $newFlowCell;
+
+                next NEXT_FLOW_CELL;
             }
         }
+
+        pop @flow;
     }
 
-    $self->iteration( $self->iteration - 1 );
-    return undef;
+    return ();
 }
 
 1;

@@ -68,41 +68,6 @@ sub setCellOnPosition {
     $cellSet->{ $posKey } = $cell;
 
     delete $self->freePositionsSet->{$posKey};
-
-    $self->setCellNeighbors($cell);
-}
-
-sub setCellNeighbors {
-    my ($self, $cell) = @_;
-
-    my $cellSet = $self->cellSet;
-    my $neighborCell;
-
-    my ($x, $y) = ($cell->x, $cell->y);
-
-    # upper
-    if ( $neighborCell = $cellSet->{ $self->getPositionKey({ x => $x, y => ($y - 1) }) } ) {
-        $cell->upperNeighbor( $neighborCell );
-        $neighborCell->bottomNeighbor( $cell );
-    }
-
-    # bottom
-    if ( $neighborCell = $cellSet->{ $self->getPositionKey({ x => $x, y => ($y + 1) }) } ) {
-        $cell->bottomNeighbor( $neighborCell );
-        $neighborCell->upperNeighbor( $cell );
-    }
-
-    # left
-    if ( $neighborCell = $cellSet->{ $self->getPositionKey({ x => ($x - 1), y => $y }) } ) {
-        $cell->leftNeighbor( $neighborCell );
-        $neighborCell->rightNeighbor( $cell );
-    }
-
-    # right
-    if ( $neighborCell = $cellSet->{ $self->getPositionKey({ x => ($x + 1), y => $y }) } ) {
-        $cell->rightNeighbor( $neighborCell );
-        $neighborCell->leftNeighbor( $cell );
-    }
 }
 
 sub getPositionKey {
@@ -169,23 +134,17 @@ sub isNeighborDirectionFree {
 
     my $freeSet = $self->freePositionsSet;
 
-    my ($x, $y) = ($cell->x, $cell->y);
-
-    # upper
     if ( $direction eq 'upperNeighbor' ) {
-        return $freeSet->{ $self->getPositionKey({ x => $x, y => ($y - 1) }) };
+        return $freeSet->{ $self->upperNeighborKey($cell) };
     }
-    # bottom
     elsif ( $direction eq 'bottomNeighbor' ) {
-        return $freeSet->{ $self->getPositionKey({ x => $x, y => ($y + 1) }) };
+        return $freeSet->{ $self->bottomNeighborKey($cell) };
     }
-    # left
     elsif ( $direction eq 'leftNeighbor' ) {
-        return $freeSet->{ $self->getPositionKey({ x => ($x - 1), y => $y }) };
+        return $freeSet->{ $self->leftNeighborKey($cell) };
     }
-    # right
     elsif ( $direction eq 'rightNeighbor' ) {
-        return $freeSet->{ $self->getPositionKey({ x => ($x + 1), y => $y }) };
+        return $freeSet->{ $self->rightNeighborKey($cell) };
     }
 
     return undef;
@@ -231,28 +190,6 @@ sub getCellByKey {
     my ($self, $key) = @_;
 
     return $self->cellSet->{ $key };
-}
-
-sub getCellNeighbors {
-    my ($self, $cell) = @_;
-
-    my @neighbors;
-
-    for my $dX ( -1, 0, 1 ) {
-        for my $dY ( -1, 0, 1 ) {
-            next if ( ! $dX & ! $dY );
-
-            my ( $x, $y ) = ( $cell->x + $dX, $cell->y + $dY );
-
-            next if ( $x < 0 || $y < 0 );
-
-            my $candidate = $self->getCell($x, $y);
-
-            push @neighbors, $candidate if ( $candidate->isPathCell() );
-        }
-    }
-
-    return @neighbors;
 }
 
 sub printMap {
@@ -337,7 +274,7 @@ sub generateDirectedGraph {
 
             for my $directionMethod ( @directions ) {
                 my $fromCell = $cell;
-                my $stepCell = $fromCell->$directionMethod;
+                my $stepCell = $self->$directionMethod($fromCell);
 
                 next if ( ! $stepCell || $excludedTypes->{ ref($stepCell) } );
 
@@ -538,6 +475,46 @@ sub treasureCell {
     my ($self) = @_;
 
     return $self->findCellByType('Cell::Treasure');
+}
+
+sub upperNeighbor {
+    my ($self, $cell) = @_;
+    return $self->cellSet->{ $self->upperNeighborKey($cell) };
+}
+
+sub bottomNeighbor {
+    my ($self, $cell) = @_;
+    return $self->cellSet->{ $self->bottomNeighborKey($cell) };
+}
+
+sub leftNeighbor {
+    my ($self, $cell) = @_;
+    return $self->cellSet->{ $self->leftNeighborKey($cell) };
+}
+
+sub rightNeighbor {
+    my ($self, $cell) = @_;
+    return $self->cellSet->{ $self->rightNeighborKey($cell) };
+}
+
+sub upperNeighborKey {
+    my ($self, $cell) = @_;
+    return $self->getPositionKey({ x => $cell->x, y => ($cell->y - 1) });
+}
+
+sub bottomNeighborKey {
+    my ($self, $cell) = @_;
+    return $self->getPositionKey({ x => $cell->x, y => ($cell->y + 1) });
+}
+
+sub leftNeighborKey {
+    my ($self, $cell) = @_;
+    return $self->getPositionKey({ x => ($cell->x - 1), y => $cell->y });
+}
+
+sub rightNeighborKey {
+    my ($self, $cell) = @_;
+    return $self->getPositionKey({ x => ($cell->x + 1), y => $cell->y });
 }
 
 1;
