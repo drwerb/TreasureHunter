@@ -32,4 +32,6 @@ around 'restore' => sub {
     $self->moonPosition( $data->{meta}->{moonPosition} );
 };
 
+__PACKAGE__->meta->make_immutable();
+
 1;

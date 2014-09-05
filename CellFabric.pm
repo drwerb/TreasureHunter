@@ -39,4 +39,6 @@ sub getCellObjectByChar {
     return $cellClass->new();
 }
 
+__PACKAGE__->meta->make_immutable();
+
 1;

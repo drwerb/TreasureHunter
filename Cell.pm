@@ -57,4 +57,6 @@ sub restore {
     $self->y( $data->{y} );
 }
 
+__PACKAGE__->meta->make_immutable();
+
 1;

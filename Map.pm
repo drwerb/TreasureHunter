@@ -517,4 +517,6 @@ sub rightNeighborKey {
     return $self->getPositionKey({ x => ($cell->x + 1), y => $cell->y });
 }
 
+__PACKAGE__->meta->make_immutable();
+
 1;

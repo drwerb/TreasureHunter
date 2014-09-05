@@ -2,11 +2,15 @@ package GameEventsHandler;
 
 use Data::Dumper;
 use JSON;
+use IO::Socket::UNIX;
+use Carp;
 
 use GameServer;
 
 use Apache2::Const -compile => qw(OK);
 #use Apache2::Request;
+
+my $GAME_SOCKET_PATH = '/tmp/tf_game.sock';
 
 sub handler {
     my $r = shift;
@@ -58,7 +62,8 @@ sub getSessionID {
 }
 
 sub printAsJSON {
-    my ($data) = @_;
+    my ($data, $fh) = @_;
+    $fh ||= STDOUT;
     print JSON->new->pretty(1)->encode($data);
 }
 
@@ -73,12 +78,16 @@ sub startNewGame {
     $width = 5  if ( $width  !~ /^\d+$/ );
     $height = 5 if ( $height !~ /^\d+$/ );
 
-    my $gs = GameServer->new();
 
-    return $gs->startNewGame({
-            mapWidth  => $width,
-            mapHeight => $height,
-            sessionID => $sessionID,
+    return sendGameDaemonData({
+            method => 'startNewGame',
+            args   => [
+                {
+                    mapWidth  => $width,
+                    mapHeight => $height,
+                    sessionID => $sessionID,
+                },
+            ],
         });
 }
 
@@ -90,10 +99,9 @@ sub resetGame {
     $width = 5  if ( $width  !~ /^\d+$/ );
     $height = 5 if ( $height !~ /^\d+$/ );
 
-    my $gs = GameServer->new();
-
-    $gs->resetSession({
-            sessionID => $sessionID,
+    sendGameDaemonData({
+            method => 'resetSession',
+            args   => [ { sessionID => $sessionID } ],
         });
 
     return $sessionID;
@@ -104,9 +112,10 @@ sub getSessionMapData {
 
     my $sessionID = getSessionID($args);
 
-    my $gs = GameServer->new();
-
-    return $gs->restoreSessionMap($sessionID);
+    return sendGameDaemonData({
+            method => 'restoreSessionMap',
+            args   => [ $sessionID ],
+        });
 }
 
 sub makeMove {
@@ -118,9 +127,40 @@ sub makeMove {
 
     return undef if ( $move !~ /^(up|down|left|right)$/ );
 
-    my $gs = GameServer->new();
+    return sendGameDaemonData({
+            method => 'makeMove',
+            args   => [ $sessionID, $move, $args ],
+        });
+}
 
-    return $gs->makeMove($sessionID, $move, $args);
+sub sendGameDaemonData {
+    my ($data) = @_;
+
+    my $sock = IO::Socket::UNIX->new(
+            Type => SOCK_STREAM,
+            Peer => $GAME_SOCKET_PATH,
+        );
+
+    croak "Unable connect to socket: $GAME_SOCKET_PATH" if ( ! $sock );
+
+    local $/ = '<term>';
+
+    my $json = JSON->new;
+    my $dataJSON = $json->encode($data);
+
+    print $sock $dataJSON . $/;
+
+    my $respJSON = <$sock>;
+
+    close $sock;
+
+    chomp($respJSON);
+
+    my $response = $json->decode($respJSON);
+
+    croak $response->{error} if ( ! $response->{success} );
+
+    return $response->{result};
 }
 
 1;

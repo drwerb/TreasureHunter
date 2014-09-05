@@ -33,4 +33,6 @@ around 'restore' => sub {
     $self->prevHolePosition( $data->{meta}->{prevHole} );
 };
 
+__PACKAGE__->meta->make_immutable();
+
 1;

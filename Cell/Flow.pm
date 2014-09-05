@@ -66,4 +66,6 @@ around 'restore' => sub {
     $self->prevFlowCellPos( $data->{meta}->{prevFlowCell} );
 };
 
+__PACKAGE__->meta->make_immutable();
+
 1;

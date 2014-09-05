@@ -5,13 +5,15 @@ use Mouse;
 use Digest::SHA qw(sha256_hex);
 use JSON;
 use IO::File;
-use Time::HiRes qw(gettimeofday);
-#use Chache::FileCache;
+#use Cache::FileCache;
 
 use MapGenerator;
+use GameSession;
+
+has 'sessionCache' => ( is => 'ro', isa => 'HashRef', default => sub { {} } );
+#has 'sessionCache' => ( is => 'ro', isa => 'Cache::FileCache', default => sub { Cache::FileCache->new({ namespace => 'gameCache', default_expires_in => 60 }) } );
 
 has 'gameMapStorePath' => ( is => 'ro', isa => 'Str', default => sub { ( $ENV{GameStore} ? $ENV{GameStore} : '.' ) . 'StoredData/GameMap' });
-has 'sessionStorePath' => ( is => 'ro', isa => 'Str', default => sub { ( $ENV{GameStore} ? $ENV{GameStore} : '.' ) . 'StoredData/Session' });
 
 sub startNewGame {
     my ($self, $args) = @_;
@@ -66,75 +68,70 @@ sub storeNewMap {
 sub storeNewSession {
     my ($self, $args) = @_;
 
-    my $sessionData = {
+    my $session = GameSession->new();
+
+    $session->sessionData({
             mapHash     => $args->{mapHash},
             position    => $args->{position},
             hasTreasure => 0,
             movesCount  => 0,
-        };
+        });
 
-    my $sessionID = join("", gettimeofday());
+    $session->store();
 
-    $self->storeSession($sessionID, $sessionData);
+    $self->sessionCache->{$session->ID} = $session;
 
-    return ($sessionID);
-}
-
-sub storeSession {
-    my ($self, $sessionID, $sessionData) = @_;
-
-    my $jsonSessionData = JSON->new->pretty(1)->encode( $sessionData );
-
-    my $filePath = join("/", $self->sessionStorePath, $sessionID);
-
-    my $fh = IO::File->new( $filePath, "w" );
-
-    print $fh $jsonSessionData;
-
-    $fh->close();
+    return ($session->ID);
 }
 
 sub resetSession {
     my ($self, $sessionID) = @_;
 
-    my $sessionData = $self->restoreSession($sessionID);
+    my $session     = $self->getSession($sessionID);
+
+    my $sessionData = $session->sessionData();
+
     my $map         = $self->restoreMap($sessionData->{mapHash});
 
     $sessionData->{position}    = $map->earthCellPosition;
     $sessionData->{hasTreasure} = 0;
     $sessionData->{movesCount}  = 0;
 
-    $self->storeSession($sessionID, $sessionData);
+    $session->store();
 }
 
 sub setSessionNewMap {
     my ($self, $sessionID, $args) = @_;
 
-    my $sessionData = $self->restoreSession($sessionID);
+    my $session = $self->getSession($sessionID);
 
     my ($mapHash, $mapGenerator) = $self->storeNewMap($args);
+
+    my $sessionData = $session->sessionData();
 
     $sessionData->{position}    = $mapGenerator->earthCell->position;
     $sessionData->{hasTreasure} = 0;
     $sessionData->{movesCount}  = 0;
 
-    $self->storeSession($sessionID, $sessionData);
+    $session->store();
 
     return $sessionID;
 }
 
-sub restoreSession {
+sub getSession {
     my ($self, $sessionID) = @_;
 
-    my $filePath = join("/", $self->sessionStorePath, $sessionID);
+    my $session = $self->sessionCache->{$sessionID};
 
-    my $fh = IO::File->new( $filePath, "r" );
+    if ( ! $session ) {
+        $session = GameSession->new({ ID => $sessionID });
 
-    my $sessionData = JSON->new->decode( join("", <$fh>) );
+        $session->restore();
 
-    $fh->close();
+        $self->sessionCache->{$sessionID} = $session;
+    }
 
-    return ($sessionData);
+    return $session;
 }
 
 sub restoreMap {
@@ -160,7 +157,7 @@ sub restoreMap {
 sub restoreSessionMap {
     my ($self, $sessionID) = @_;
 
-    my $sessionData = $self->restoreSession($sessionID);
+    my $sessionData = $self->getSession($sessionID)->sessionData;
 
     my $mapData = $self->restoreMap( $sessionData->{mapHash}, { rawData => 1 } );
 
@@ -176,7 +173,8 @@ sub makeMove {
         sessionID => $sessionID,
     };
 
-    my $sessionData = $self->restoreSession($sessionID);
+    my $session     = $self->getSession($sessionID);
+    my $sessionData = $session->sessionData;
     my $map         = $self->restoreMap($sessionData->{mapHash});
 
     my $currentCell = $map->getCellByPosition( $sessionData->{position} );
@@ -236,15 +234,18 @@ sub makeMove {
 
     $sessionData->{movesCount}++;
 
-    $self->storeSession($sessionID, $sessionData);
-
     $result->{hasTreasure} = $sessionData->{hasTreasure};
 
     if ( $args->{isMapShown} ) {
         $result->{currentPosition} = $sessionData->{position};
     }
 
+    #$session->sessionData( $sessionData );
+    #$self->sessionCache->set($session->ID, $session);
+
     return $result;
 }
+
+__PACKAGE__->meta->make_immutable();
 
 1;
